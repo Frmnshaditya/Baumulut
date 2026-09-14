@@ -5,9 +5,16 @@ import { ProfileData } from '../types';
 interface LanyardBadgeProps {
   profile: ProfileData;
   onUpdateAvatar?: (newUrl: string) => void;
+  isLoggedIn?: boolean;
+  onOpenPersonalAdmin?: () => void;
 }
 
-export const LanyardBadge: React.FC<LanyardBadgeProps> = ({ profile, onUpdateAvatar }) => {
+export const LanyardBadge: React.FC<LanyardBadgeProps> = ({
+  profile,
+  onUpdateAvatar,
+  isLoggedIn = false,
+  onOpenPersonalAdmin,
+}) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -165,22 +172,30 @@ export const LanyardBadge: React.FC<LanyardBadgeProps> = ({ profile, onUpdateAva
                 <span>VERIFIED</span>
               </div>
 
-              {/* Change/Upload photo button trigger on hover */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                title="Ganti / Unggah Foto Pribadi"
-                className={`absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center gap-1 text-white text-xs font-bold transition-opacity cursor-pointer ${
-                  isHovered ? 'opacity-100' : 'opacity-0'
-                }`}
-              >
-                <div className="p-2 bg-[#FF6B00] text-black border border-black rounded-full shadow-[2px_2px_0px_0px_#000000]">
-                  <Camera className="w-4 h-4 stroke-[2.5]" />
-                </div>
-                <span className="font-display font-bold mt-1 text-[11px] bg-black/80 px-2 py-0.5 rounded border border-white/40">
-                  Ganti Foto
-                </span>
-              </button>
+              {/* Change/Upload photo button trigger on hover (Only when logged in) */}
+              {isLoggedIn && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onOpenPersonalAdmin) {
+                      onOpenPersonalAdmin();
+                    } else {
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  title="Ganti / Unggah Foto di Menu Pribadi"
+                  className={`absolute inset-0 bg-black/65 backdrop-blur-xs flex flex-col items-center justify-center gap-1 text-white text-xs font-bold transition-opacity cursor-pointer ${
+                    isHovered ? 'opacity-100' : 'opacity-0'
+                  }`}
+                >
+                  <div className="p-2 bg-[#FF6B00] text-black border border-black rounded-full shadow-[2px_2px_0px_0px_#000000]">
+                    <Camera className="w-4 h-4 stroke-[2.5]" />
+                  </div>
+                  <span className="font-display font-bold mt-1 text-[11px] bg-black/80 px-2 py-0.5 rounded border border-white/40">
+                    Menu Foto Pribadi
+                  </span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -225,16 +240,28 @@ export const LanyardBadge: React.FC<LanyardBadgeProps> = ({ profile, onUpdateAva
             </span>
           </div>
 
-          {/* Quick Upload action button */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="font-display px-2 py-1 text-[10px] font-extrabold bg-neutral-100 dark:bg-neutral-800 text-black dark:text-white hover:bg-[#FF6B00] dark:hover:bg-[#FF6B00] dark:hover:text-black border border-black rounded shadow-[1.5px_1.5px_0px_0px_#000000] flex items-center gap-1 transition-colors cursor-pointer"
-            title="Upload Foto Pribadi"
-          >
-            <Upload className="w-3 h-3 stroke-[2.5]" />
-            <span>Upload</span>
-          </button>
+          {/* Action or credential badge */}
+          {isLoggedIn ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (onOpenPersonalAdmin) {
+                  onOpenPersonalAdmin();
+                } else {
+                  fileInputRef.current?.click();
+                }
+              }}
+              className="font-display px-2 py-1 text-[10px] font-extrabold bg-[#FF6B00] text-black border border-black rounded shadow-[1.5px_1.5px_0px_0px_#000000] flex items-center gap-1 transition-colors cursor-pointer"
+              title="Kelola Foto di Menu Pribadi"
+            >
+              <Upload className="w-3 h-3 stroke-[2.5]" />
+              <span>Ganti Foto</span>
+            </button>
+          ) : (
+            <span className="font-mono-code px-2 py-0.5 text-[9px] font-extrabold bg-neutral-100 dark:bg-neutral-800 text-black dark:text-white border border-black rounded shadow-xs">
+              UIN SAIZU PASS
+            </span>
+          )}
         </div>
       </div>
 

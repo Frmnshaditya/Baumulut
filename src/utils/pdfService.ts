@@ -198,8 +198,9 @@ export function downloadCV(profile: ProfileData, experiences: Experience[] = [])
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(40, 40, 40);
+  const aboutStr = Array.isArray(profile.aboutText) ? profile.aboutText.join(' ') : (profile.aboutText || '');
   const summaryLines = doc.splitTextToSize(
-    `${profile.greeting} ${profile.aboutText.join(' ')}`,
+    `${profile.greeting || ''} ${aboutStr}`.trim(),
     pageWidth - margin * 2
   );
   doc.text(summaryLines, margin, y);
@@ -284,11 +285,18 @@ export function downloadCV(profile: ProfileData, experiences: Experience[] = [])
   y += 5;
 
   doc.setFontSize(8.5);
+  const safeSkills = profile.skills || {
+    frontend: [],
+    backend: [],
+    databaseAndCloud: [],
+    toolsAndMethods: [],
+  };
+
   const skillsList = [
-    { label: 'Public Speaking', items: profile.skills.frontend.join(', ') },
-    { label: 'Fotografi & Visual', items: profile.skills.backend.join(', ') },
-    { label: 'Kepemimpinan', items: profile.skills.databaseAndCloud.join(', ') },
-    { label: 'Menulis & Literasi', items: profile.skills.toolsAndMethods.join(', ') },
+    { label: 'Public Speaking', items: (safeSkills.frontend || []).join(', ') },
+    { label: 'Fotografi & Visual', items: (safeSkills.backend || []).join(', ') },
+    { label: 'Kepemimpinan', items: (safeSkills.databaseAndCloud || []).join(', ') },
+    { label: 'Menulis & Literasi', items: (safeSkills.toolsAndMethods || []).join(', ') },
   ];
 
   skillsList.forEach((sk) => {

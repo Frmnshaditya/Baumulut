@@ -3,36 +3,43 @@ import { ProfileData } from '../types';
 import { Mic, Camera, Users, BookOpen } from 'lucide-react';
 
 interface SkillsSectionProps {
-  skills: ProfileData['skills'];
+  skills?: ProfileData['skills'];
 }
 
 export const SkillsSection: React.FC<SkillsSectionProps> = ({ skills }) => {
+  const safeSkills = skills || {
+    frontend: [],
+    backend: [],
+    databaseAndCloud: [],
+    toolsAndMethods: [],
+  };
+
   const categories = [
     {
       title: 'Public Speaking & Moderasi',
       icon: Mic,
-      items: skills.frontend,
+      items: safeSkills.frontend || [],
       accentBg: 'bg-[#93C5FD]',
       badgeColor: 'bg-[#DBEAFE]',
     },
     {
       title: 'Fotografi & Visual Storytelling',
       icon: Camera,
-      items: skills.backend,
+      items: safeSkills.backend || [],
       accentBg: 'bg-[#86EFAC]',
       badgeColor: 'bg-[#DCFCE7]',
     },
     {
       title: 'Kepemimpinan & Organisasi',
       icon: Users,
-      items: skills.databaseAndCloud,
+      items: safeSkills.databaseAndCloud || [],
       accentBg: 'bg-[#FDE047]',
       badgeColor: 'bg-[#FEF9C3]',
     },
     {
       title: 'Menulis & Literasi',
       icon: BookOpen,
-      items: skills.toolsAndMethods,
+      items: safeSkills.toolsAndMethods || [],
       accentBg: 'bg-[#F472B6]',
       badgeColor: 'bg-[#FCE7F3]',
     },

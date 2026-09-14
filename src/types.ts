@@ -1,44 +1,50 @@
-export interface SocialLinks {
-  email: string;
-  github?: string;
-  linkedin?: string;
-  medium?: string;
-  twitter?: string;
-  phone?: string;
-  linktree?: string;
-  whatsapp?: string;
-  instagram?: string;
-}
-
-export interface EducationItem {
-  id: string;
-  institution: string;
-  period?: string;
-  status: string;
-  description?: string;
-}
-
-export interface HobbyItem {
-  id: string;
-  title: string;
-  description: string;
-  iconName: string;
-}
-
 export interface Project {
   id: string;
   title: string;
   description: string;
   longDescription?: string;
+  category: string;
   tags: string[];
-  category: 'Public Speaking' | 'Photography' | 'Organization' | 'Writing' | 'Full Stack' | 'Frontend' | 'Mobile' | 'Open Source';
-  githubUrl: string;
+  githubUrl?: string;
   liveUrl?: string;
-  featured: boolean;
-  year: string;
+  featured?: boolean;
+  year?: string;
   stars?: number;
   highlight?: string;
   image?: string;
+}
+
+export interface EducationItem {
+  institution: string;
+  period: string;
+  degree?: string;
+  field?: string;
+  location?: string;
+  description?: string;
+  status?: string;
+  activities?: string[];
+}
+
+export interface HobbyItem {
+  id: string;
+  name: string;
+  category: string;
+  icon?: string;
+  description?: string;
+  favorite?: string;
+  detail?: string;
+}
+
+export interface SocialLinks {
+  email: string;
+  phone?: string;
+  whatsapp?: string;
+  instagram: string;
+  linkedin: string;
+  github: string;
+  linktree?: string;
+  tiktok?: string;
+  address?: string;
 }
 
 export interface Experience {
@@ -46,7 +52,7 @@ export interface Experience {
   role: string;
   company: string;
   period: string;
-  location: string;
+  type: 'Pendidikan' | 'Organisasi' | 'Kepanitiaan' | 'Karier' | 'Moderator & Event';
   description: string;
   achievements: string[];
   technologies: string[];
@@ -57,6 +63,14 @@ export interface CVFileInfo {
   dataUrl: string;
   size?: number;
   updatedAt?: string;
+}
+
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  createdAt: string;
 }
 
 export interface ProfileData {
@@ -80,4 +94,3 @@ export interface ProfileData {
   };
   socials: SocialLinks;
 }
-

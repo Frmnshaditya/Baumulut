@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with personal information, skills, and portfolio metadata",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "title": { "type": "string", "maxLength": 150 },
+        "location": { "type": "string", "maxLength": 100 },
+        "greeting": { "type": "string", "maxLength": 200 },
+        "bioNote": { "type": "string", "maxLength": 500 },
+        "githubRepoUrl": { "type": "string", "maxLength": 255 },
+        "avatarUrl": { "type": "string", "maxLength": 1000000 },
+        "badgeId": { "type": "string", "maxLength": 50 },
+        "aboutText": { "type": "array" },
+        "skills": { "type": "object" },
+        "socials": { "type": "object" },
+        "education": { "type": "array" },
+        "hobbies": { "type": "array" },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["name", "title"]
+    },
+    "ProjectItem": {
+      "title": "ProjectItem",
+      "description": "Portfolio item or project documentation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 150 },
+        "description": { "type": "string", "maxLength": 500 },
+        "longDescription": { "type": "string", "maxLength": 2000 },
+        "category": { "type": "string", "maxLength": 50 },
+        "tags": { "type": "array" },
+        "githubUrl": { "type": "string", "maxLength": 255 },
+        "liveUrl": { "type": "string", "maxLength": 255 },
+        "featured": { "type": "boolean" },
+        "year": { "type": "string", "maxLength": 20 },
+        "stars": { "type": "number" },
+        "highlight": { "type": "string", "maxLength": 100 },
+        "image": { "type": "string", "maxLength": 1000000 },
+        "updatedAt": { "type": "string" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["id", "title"]
+    },
+    "ContactMessage": {
+      "title": "ContactMessage",
+      "description": "Contact form submission received from visitors",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 64 },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 150 },
+        "message": { "type": "string", "maxLength": 2000 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "email", "message"]
+    },
+    "AppAdmin": {
+      "title": "AppAdmin",
+      "description": "Designated administrator identity record",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 255 },
+        "role": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/portfolio/main": {
+      "schema": "UserProfile",
+      "description": "Global portfolio main profile document read by all visitors and updated by portfolio administrator"
+    },
+    "/projects/{projectId}": {
+      "schema": "ProjectItem",
+      "description": "Portfolio project documentation items read by all visitors and managed by administrator"
+    },
+    "/messages/{messageId}": {
+      "schema": "ContactMessage",
+      "description": "Contact messages sent by visitors through portfolio contact form"
+    },
+    "/admins/{userId}": {
+      "schema": "AppAdmin",
+      "description": "Verified admin permissions document"
+    }
+  }
+}

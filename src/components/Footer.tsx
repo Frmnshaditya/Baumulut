@@ -1,12 +1,20 @@
 import React from 'react';
-import { ArrowUp, Heart, Globe, Mail, MessageCircle } from 'lucide-react';
+import { ArrowUp, Heart, Globe, Mail, MessageCircle, Lock, ShieldCheck } from 'lucide-react';
 import { ProfileData } from '../types';
 
 interface FooterProps {
   profile: ProfileData;
+  isLoggedIn?: boolean;
+  onOpenLogin?: () => void;
+  onOpenPersonalAdmin?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ profile }) => {
+export const Footer: React.FC<FooterProps> = ({
+  profile,
+  isLoggedIn = false,
+  onOpenLogin,
+  onOpenPersonalAdmin,
+}) => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -56,6 +64,31 @@ export const Footer: React.FC<FooterProps> = ({ profile }) => {
             <span>Email</span>
           </a>
 
+          {/* Discrete Private Access Link */}
+          {isLoggedIn ? (
+            <button
+              id="footer-personal-admin-btn"
+              type="button"
+              onClick={onOpenPersonalAdmin}
+              className="text-neutral-500 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1 cursor-pointer font-mono text-[11px]"
+              title="Buka Menu Pengelola Pribadi"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-green-500" />
+              <span>Menu Pribadi</span>
+            </button>
+          ) : (
+            <button
+              id="footer-login-btn"
+              type="button"
+              onClick={onOpenLogin}
+              className="text-neutral-400 hover:text-black dark:hover:text-white transition-colors flex items-center gap-1 cursor-pointer font-mono text-[11px]"
+              title="Menu Login Pribadi (Asqi)"
+            >
+              <Lock className="w-3 h-3" />
+              <span>Admin</span>
+            </button>
+          )}
+
           <button
             id="back-to-top-btn"
             onClick={scrollToTop}
@@ -69,3 +102,4 @@ export const Footer: React.FC<FooterProps> = ({ profile }) => {
     </footer>
   );
 };
+

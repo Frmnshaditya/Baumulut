@@ -15,6 +15,8 @@ interface HomeViewProps {
   onNavigateToWork: () => void;
   onUpdateAvatar?: (newUrl: string) => void;
   onUpdateCV?: (cvInfo: CVFileInfo) => void;
+  isLoggedIn?: boolean;
+  onOpenPersonalAdmin?: () => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -25,6 +27,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onNavigateToWork,
   onUpdateAvatar,
   onUpdateCV,
+  isLoggedIn = false,
+  onOpenPersonalAdmin,
 }) => {
   const featuredProjects = projects.filter((p) => p.featured);
 
@@ -36,6 +40,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onUpdateAvatar={onUpdateAvatar}
         onUpdateCV={onUpdateCV}
         experiences={experiences}
+        isLoggedIn={isLoggedIn}
+        onOpenPersonalAdmin={onOpenPersonalAdmin}
       />
 
       {/* 2. Key Highlights / Quick Stats */}

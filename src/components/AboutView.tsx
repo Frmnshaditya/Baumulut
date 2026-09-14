@@ -10,18 +10,30 @@ interface AboutViewProps {
   profile: ProfileData;
   experiences: Experience[];
   onUpdateCV?: (cvInfo: CVFileInfo) => void;
+  isLoggedIn?: boolean;
+  onOpenPersonalAdmin?: () => void;
 }
 
-export const AboutView: React.FC<AboutViewProps> = ({ profile, experiences, onUpdateCV }) => {
+export const AboutView: React.FC<AboutViewProps> = ({
+  profile,
+  experiences,
+  onUpdateCV,
+  isLoggedIn = false,
+  onOpenPersonalAdmin,
+}) => {
   const [downloaded, setDownloaded] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDownloadResume = () => {
-    downloadCV(profile, experiences);
-    setDownloaded(true);
-    setTimeout(() => setDownloaded(false), 2500);
+    try {
+      downloadCV(profile, experiences);
+      setDownloaded(true);
+      setTimeout(() => setDownloaded(false), 2500);
+    } catch (err) {
+      console.warn('Gagal mengunduh CV:', err);
+    }
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,7 +49,8 @@ export const AboutView: React.FC<AboutViewProps> = ({ profile, experiences, onUp
       setUploadMessage(`File "${file.name}" berhasil dimasukkan!`);
       setTimeout(() => setUploadMessage(null), 3500);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Gagal memproses file PDF');
+      setUploadMessage(err instanceof Error ? err.message : 'Gagal memproses file PDF');
+      setTimeout(() => setUploadMessage(null), 4000);
     } finally {
       setUploading(false);
       if (e.target) e.target.value = '';
@@ -63,7 +76,7 @@ export const AboutView: React.FC<AboutViewProps> = ({ profile, experiences, onUp
 
         {/* Story Card */}
         <div className="bg-white dark:bg-[#202024] border-2 border-black rounded-2xl p-6 sm:p-8 shadow-[5px_5px_0px_0px_#000000] space-y-4 text-black dark:text-white text-base sm:text-lg leading-relaxed font-normal">
-          {profile.aboutText.map((paragraph, index) => (
+          {(Array.isArray(profile.aboutText) ? profile.aboutText : [profile.aboutText || '']).map((paragraph, index) => (
             <p key={index}>{paragraph}</p>
           ))}
 
@@ -92,17 +105,18 @@ export const AboutView: React.FC<AboutViewProps> = ({ profile, experiences, onUp
                 <span>{downloaded ? 'CV Terunduh (.pdf)!' : 'Download CV (PDF)'}</span>
               </button>
 
-              <button
-                id="about-upload-resume-btn"
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="font-display px-3 py-2 bg-white dark:bg-[#1A1A1E] text-black dark:text-white font-bold text-xs sm:text-sm border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#000000] hover:translate-x-[-1px] hover:translate-y-[-1px] flex items-center gap-1.5 cursor-pointer transition-transform"
-                title="Unggah file PDF CV Anda sendiri"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>{uploading ? 'Memproses...' : profile.cvFile ? 'Ganti File CV' : 'Unggah CV (PDF)'}</span>
-              </button>
+              {isLoggedIn && (
+                <button
+                  id="about-manage-cv-btn"
+                  type="button"
+                  onClick={onOpenPersonalAdmin}
+                  className="font-display px-3 py-2 bg-white dark:bg-[#1A1A1E] text-black dark:text-white font-bold text-xs sm:text-sm border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#000000] hover:translate-x-[-1px] hover:translate-y-[-1px] flex items-center gap-1.5 cursor-pointer transition-transform"
+                  title="Kelola File CV di Menu Pribadi"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Kelola CV (Pribadi)</span>
+                </button>
+              )}
             </div>
           </div>
 

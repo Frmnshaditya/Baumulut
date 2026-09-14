@@ -9,28 +9,55 @@ interface HeroProps {
   onUpdateAvatar?: (newUrl: string) => void;
   onUpdateCV?: (cvInfo: CVFileInfo) => void;
   experiences?: Experience[];
+  isLoggedIn?: boolean;
+  onOpenPersonalAdmin?: () => void;
 }
 
-export const Hero: React.FC<HeroProps> = ({ profile, onUpdateAvatar, onUpdateCV, experiences = [] }) => {
+export const Hero: React.FC<HeroProps> = ({
+  profile,
+  onUpdateAvatar,
+  onUpdateCV,
+  experiences = [],
+  isLoggedIn = false,
+  onOpenPersonalAdmin,
+}) => {
   const [copied, setCopied] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const cvFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleCopyEmail = (e: React.MouseEvent) => {
+  const handleCopyEmail = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(profile.socials.email);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(profile.socials.email);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = profile.socials.email;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
   const handleDownloadCV = () => {
-    downloadCV(profile, experiences);
-    setIsDownloaded(true);
-    setTimeout(() => setIsDownloaded(false), 2500);
+    try {
+      downloadCV(profile, experiences);
+      setIsDownloaded(true);
+      setTimeout(() => setIsDownloaded(false), 2500);
+    } catch (err) {
+      console.warn('Gagal mengunduh CV:', err);
+    }
   };
 
   const handleCVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,7 +73,8 @@ export const Hero: React.FC<HeroProps> = ({ profile, onUpdateAvatar, onUpdateCV,
       setUploadMsg(`File ${file.name} tersimpan!`);
       setTimeout(() => setUploadMsg(null), 3000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Gagal memproses file PDF');
+      setUploadMsg(err instanceof Error ? err.message : 'Gagal memproses file PDF');
+      setTimeout(() => setUploadMsg(null), 4000);
     } finally {
       setIsUploading(false);
       if (e.target) e.target.value = '';
@@ -190,31 +218,30 @@ export const Hero: React.FC<HeroProps> = ({ profile, onUpdateAvatar, onUpdateCV,
                 )}
               </button>
 
-              {/* Upload / Replace CV Button */}
-              <button
-                id="hero-upload-cv-btn"
-                type="button"
-                onClick={() => cvFileInputRef.current?.click()}
-                disabled={isUploading}
-                className="font-display px-3 py-2 bg-white dark:bg-[#1E1E22] text-black dark:text-white font-bold text-xs sm:text-sm border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#000000] hover:translate-x-[-1px] hover:translate-y-[-1px] active:translate-x-[1px] active:translate-y-[1px] flex items-center gap-1.5 cursor-pointer transition-all"
-                title="Unggah file CV PDF milik Anda"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>{isUploading ? 'Memproses...' : profile.cvFile ? 'Ganti File CV' : 'Input / Unggah CV'}</span>
-              </button>
+              {/* When logged in as private user, show quick access to manage CV */}
+              {isLoggedIn && (
+                <button
+                  id="hero-manage-cv-btn"
+                  type="button"
+                  onClick={onOpenPersonalAdmin}
+                  className="font-display px-3 py-2 bg-white dark:bg-[#1E1E22] text-black dark:text-white font-bold text-xs sm:text-sm border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#000000] hover:translate-x-[-1px] hover:translate-y-[-1px] active:translate-x-[1px] active:translate-y-[1px] flex items-center gap-1.5 cursor-pointer transition-all"
+                  title="Kelola file CV di Menu Pribadi"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Kelola File CV (Pribadi)</span>
+                </button>
+              )}
             </div>
 
             {/* Active CV indicator */}
             <div className="flex items-center gap-2 text-xs font-mono text-black/70 dark:text-neutral-400">
               <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-              {uploadMsg ? (
-                <span className="text-green-600 dark:text-green-400 font-bold">{uploadMsg}</span>
-              ) : profile.cvFile ? (
+              {profile.cvFile ? (
                 <span className="truncate">
-                  File terpasang: <strong className="text-black dark:text-white underline">{profile.cvFile.name}</strong>
+                  File Dokumen Resmi: <strong className="text-black dark:text-white underline">{profile.cvFile.name}</strong> ({profile.cvFile.size})
                 </span>
               ) : (
-                <span>Format output: <strong className="text-black dark:text-white">PDF (.pdf)</strong> (klik untuk unduh atau unggah file Anda)</span>
+                <span>Format Dokumen: <strong className="text-black dark:text-white">PDF (.pdf) Resmi</strong></span>
               )}
             </div>
           </div>
@@ -222,7 +249,12 @@ export const Hero: React.FC<HeroProps> = ({ profile, onUpdateAvatar, onUpdateCV,
 
         {/* Right Column: Lanyard ID Card Pass with Personal Photo */}
         <div className="shrink-0 flex justify-center w-full md:w-auto">
-          <LanyardBadge profile={profile} onUpdateAvatar={onUpdateAvatar} />
+          <LanyardBadge
+            profile={profile}
+            onUpdateAvatar={onUpdateAvatar}
+            isLoggedIn={isLoggedIn}
+            onOpenPersonalAdmin={onOpenPersonalAdmin}
+          />
         </div>
       </div>
     </section>

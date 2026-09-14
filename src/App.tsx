@@ -5,15 +5,32 @@ import { AboutView } from './components/AboutView';
 import { WorkView } from './components/WorkView';
 import { Footer } from './components/Footer';
 import { ProjectModal } from './components/ProjectModal';
-import { CustomizeModal } from './components/CustomizeModal';
+import { LoginModal } from './components/LoginModal';
+import { PersonalAdminModal } from './components/PersonalAdminModal';
 import { initialProfile, initialProjects, initialExperiences } from './data/portfolioData';
 import { ProfileData, Project, CVFileInfo } from './types';
 import { loadCustomCVLocally, saveCustomCVLocally } from './utils/pdfService';
+import { checkIsAuthenticated, setAuthenticatedSession } from './utils/authService';
+import {
+  subscribeToProfile,
+  subscribeToProjects,
+  saveProfileToFirestore,
+  saveProjectsToFirestore,
+  testFirestoreConnection,
+} from './lib/firebase';
+import { ShieldCheck, LogOut, Cloud } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'home' | 'about' | 'work'>('home');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
+
+  // Firestore connection state
+  const [isFirebaseConnected, setIsFirebaseConnected] = useState<boolean>(true);
+
+  // Auth & Admin modals state (PIN-based authentication)
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => checkIsAuthenticated());
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+  const [isPersonalAdminOpen, setIsPersonalAdminOpen] = useState<boolean>(false);
 
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -22,19 +39,30 @@ export default function App() {
     return false;
   });
 
-  // Profile data state
+  // Profile data state with local fallback & Firestore realtime sync
   const [profile, setProfile] = useState<ProfileData>(() => {
     const storedCV = loadCustomCVLocally();
     try {
       const saved = localStorage.getItem('portfolio_profile');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // If stored profile is the old John Doe template, switch directly to Asqi Faizul Ikmaludin
-        if (parsed && parsed.name && parsed.name !== 'John Doe') {
-          if (!parsed.cvFile && storedCV) {
-            parsed.cvFile = storedCV;
-          }
-          return parsed;
+        if (parsed && typeof parsed === 'object') {
+          return {
+            ...initialProfile,
+            ...parsed,
+            skills: {
+              ...initialProfile.skills,
+              ...(parsed.skills || {}),
+            },
+            socials: {
+              ...initialProfile.socials,
+              ...(parsed.socials || {}),
+            },
+            education: Array.isArray(parsed.education) ? parsed.education : initialProfile.education,
+            hobbies: Array.isArray(parsed.hobbies) ? parsed.hobbies : initialProfile.hobbies,
+            aboutText: Array.isArray(parsed.aboutText) ? parsed.aboutText : initialProfile.aboutText,
+            cvFile: parsed.cvFile || storedCV,
+          };
         }
       }
     } catch {
@@ -47,13 +75,81 @@ export default function App() {
     return initial;
   });
 
+  // Projects data state
+  const [projects, setProjects] = useState<Project[]>(() => {
+    try {
+      const saved = localStorage.getItem('portfolio_projects');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return initialProjects;
+  });
+
+  // 1. Check connection
+  useEffect(() => {
+    testFirestoreConnection().then((connected) => {
+      setIsFirebaseConnected(connected);
+    });
+  }, []);
+
+  // 2. Real-time Firestore Listeners (Profile & Projects)
+  useEffect(() => {
+    const unsubscribeProfile = subscribeToProfile((cloudProfile) => {
+      setProfile((prev) => {
+        // Keep local CV if cloud does not have it yet
+        const localCV = prev.cvFile || loadCustomCVLocally();
+        const merged = {
+          ...cloudProfile,
+          cvFile: cloudProfile.cvFile || localCV,
+        };
+        try {
+          localStorage.setItem('portfolio_profile', JSON.stringify(merged));
+        } catch {
+          // ignore
+        }
+        return merged;
+      });
+    });
+
+    const unsubscribeProjects = subscribeToProjects((cloudProjects) => {
+      if (cloudProjects && cloudProjects.length > 0) {
+        setProjects(cloudProjects);
+        try {
+          localStorage.setItem('portfolio_projects', JSON.stringify(cloudProjects));
+        } catch {
+          // ignore
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeProfile();
+      unsubscribeProjects();
+    };
+  }, []);
+
+  // Theme effect
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('portfolio_theme', 'dark');
+      try {
+        localStorage.setItem('portfolio_theme', 'dark');
+      } catch {
+        // ignore
+      }
     } else {
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('portfolio_theme', 'light');
+      try {
+        localStorage.setItem('portfolio_theme', 'light');
+      } catch {
+        // ignore
+      }
     }
   }, [isDarkMode]);
 
@@ -62,7 +158,30 @@ export default function App() {
     if (newProfile.cvFile) {
       saveCustomCVLocally(newProfile.cvFile);
     }
-    localStorage.setItem('portfolio_profile', JSON.stringify(newProfile));
+    try {
+      localStorage.setItem('portfolio_profile', JSON.stringify(newProfile));
+    } catch (e) {
+      console.warn('LocalStorage save profile quota exceeded:', e);
+    }
+
+    // Realtime Cloud Write to Firebase
+    saveProfileToFirestore(newProfile).catch((err) => {
+      console.warn('Could not sync profile to Firebase Firestore:', err);
+    });
+  };
+
+  const handleSaveProjects = (newProjects: Project[]) => {
+    setProjects(newProjects);
+    try {
+      localStorage.setItem('portfolio_projects', JSON.stringify(newProjects));
+    } catch (e) {
+      console.warn('LocalStorage save projects quota exceeded:', e);
+    }
+
+    // Realtime Cloud Write to Firebase
+    saveProjectsToFirestore(newProjects).catch((err) => {
+      console.warn('Could not sync projects to Firebase Firestore:', err);
+    });
   };
 
   const handleUpdateCV = (cvInfo: CVFileInfo) => {
@@ -70,8 +189,21 @@ export default function App() {
     handleSaveProfile(updated);
   };
 
+  // Auth handlers
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+    setIsLoginModalOpen(false);
+    setIsPersonalAdminOpen(true);
+  };
+
+  const handleLogout = () => {
+    setAuthenticatedSession(false);
+    setIsLoggedIn(false);
+    setIsPersonalAdminOpen(false);
+  };
+
   return (
-    <div className="min-h-screen flex flex-col justify-between selection:bg-[#FF6B00] selection:text-black text-black dark:text-white">
+    <div className="min-h-screen flex flex-col justify-between selection:bg-[#FF6B00] selection:text-black text-black dark:text-white relative bg-[#FFFDF9] dark:bg-[#121214] transition-colors duration-200">
       {/* Top Floating Neobrutalist Navbar */}
       <Navbar
         activeTab={activeTab}
@@ -81,15 +213,57 @@ export default function App() {
         }}
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
-        onOpenCustomize={() => setIsCustomizeOpen(true)}
+        isLoggedIn={isLoggedIn}
+        isFirebaseConnected={isFirebaseConnected}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
+        onOpenPersonalAdmin={() => setIsPersonalAdminOpen(true)}
       />
+
+      {/* Floating Logged-in Admin Banner Indicator */}
+      {isLoggedIn && (
+        <div
+          id="admin-status-toast"
+          className="fixed bottom-4 right-4 z-40 bg-black text-white border-2 sm:border-3 border-[#FF6B00] rounded-xl p-2.5 sm:px-3 sm:py-2 shadow-[4px_4px_0px_0px_#FF6B00] flex items-center gap-2.5 animate-in slide-in-from-bottom-3"
+        >
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-green-400 animate-ping" />
+            <ShieldCheck className="w-4 h-4 text-[#FF6B00]" />
+            <div className="flex flex-col">
+              <span className="font-display text-xs font-bold hidden sm:inline leading-tight">
+                Mode Pengelola Aktif
+              </span>
+              <span className="text-[10px] font-mono-code text-neutral-300 hidden sm:inline flex items-center gap-1">
+                <Cloud className="w-3 h-3 text-green-400 inline" />
+                Firebase Realtime
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsPersonalAdminOpen(true)}
+            className="font-display px-2.5 py-1 bg-[#FF6B00] text-black text-xs font-black rounded-md hover:bg-orange-500 cursor-pointer shadow-xs active:scale-95 transition-transform"
+          >
+            Kelola Portofolio
+          </button>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            title="Keluar dari sesi pribadi"
+            className="p-1 text-neutral-400 hover:text-white cursor-pointer hover:bg-white/10 rounded transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main id="main-content" className="flex-1 w-full pb-8">
         {activeTab === 'home' && (
           <HomeView
             profile={profile}
-            projects={initialProjects}
+            projects={projects}
             experiences={initialExperiences}
             onSelectProject={(p) => setSelectedProject(p)}
             onNavigateToWork={() => {
@@ -98,6 +272,8 @@ export default function App() {
             }}
             onUpdateAvatar={(newUrl) => handleSaveProfile({ ...profile, avatarUrl: newUrl })}
             onUpdateCV={handleUpdateCV}
+            isLoggedIn={isLoggedIn}
+            onOpenPersonalAdmin={() => setIsPersonalAdminOpen(true)}
           />
         )}
 
@@ -106,12 +282,14 @@ export default function App() {
             profile={profile}
             experiences={initialExperiences}
             onUpdateCV={handleUpdateCV}
+            isLoggedIn={isLoggedIn}
+            onOpenPersonalAdmin={() => setIsPersonalAdminOpen(true)}
           />
         )}
 
         {activeTab === 'work' && (
           <WorkView
-            projects={initialProjects}
+            projects={projects}
             profile={profile}
             onSelectProject={(p) => setSelectedProject(p)}
           />
@@ -119,7 +297,12 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <Footer profile={profile} />
+      <Footer
+        profile={profile}
+        isLoggedIn={isLoggedIn}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
+        onOpenPersonalAdmin={() => setIsPersonalAdminOpen(true)}
+      />
 
       {/* Project Detail Modal */}
       <ProjectModal
@@ -127,12 +310,23 @@ export default function App() {
         onClose={() => setSelectedProject(null)}
       />
 
-      {/* Customize Drawer / Modal */}
-      <CustomizeModal
-        isOpen={isCustomizeOpen}
-        onClose={() => setIsCustomizeOpen(false)}
+      {/* Private Login Modal with PIN Authentication */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+      />
+
+      {/* Personal Admin Modal for Realtime Cloud Photo, CV & Profile Management */}
+      <PersonalAdminModal
+        isOpen={isPersonalAdminOpen}
+        onClose={() => setIsPersonalAdminOpen(false)}
         profile={profile}
+        projects={projects}
         onSaveProfile={handleSaveProfile}
+        onSaveProjects={handleSaveProjects}
+        onLogout={handleLogout}
+        isFirebaseConnected={isFirebaseConnected}
       />
     </div>
   );
