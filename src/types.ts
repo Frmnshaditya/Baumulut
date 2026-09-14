@@ -15,6 +15,7 @@ export interface Project {
 }
 
 export interface EducationItem {
+  id?: string;
   institution: string;
   period: string;
   degree?: string;
@@ -28,6 +29,7 @@ export interface EducationItem {
 export interface HobbyItem {
   id: string;
   name: string;
+  title?: string;
   category: string;
   icon?: string;
   description?: string;
@@ -39,7 +41,7 @@ export interface SocialLinks {
   email: string;
   phone?: string;
   whatsapp?: string;
-  instagram: string;
+  instagram?: string;
   linkedin: string;
   github: string;
   linktree?: string;
@@ -51,6 +53,7 @@ export interface Experience {
   id: string;
   role: string;
   company: string;
+  location?: string;
   period: string;
   type: 'Pendidikan' | 'Organisasi' | 'Kepanitiaan' | 'Karier' | 'Moderator & Event';
   description: string;
