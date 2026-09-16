@@ -4,44 +4,19 @@ import { ProfileData, Experience, CVFileInfo } from '../types';
 const CV_STORAGE_KEY = 'neobrutalism_portfolio_custom_cv';
 
 /**
- * Saves uploaded CV to localStorage with safety fallback
- */
-export function saveCustomCVLocally(cvInfo: CVFileInfo): void {
-  try {
-    localStorage.setItem(CV_STORAGE_KEY, JSON.stringify(cvInfo));
-  } catch (err) {
-    console.warn('Could not store full CV in localStorage, file might be large:', err);
-  }
-}
-
-/**
- * Loads stored CV from localStorage if available
- */
-export function loadCustomCVLocally(): CVFileInfo | null {
-  try {
-    const raw = localStorage.getItem(CV_STORAGE_KEY);
-    if (raw) {
-      return JSON.parse(raw) as CVFileInfo;
-    }
-  } catch (err) {
-    console.warn('Error reading CV from localStorage:', err);
-  }
-  return null;
-}
-
-/**
- * Removes custom CV from localStorage
+ * Cleanup any legacy CV stored in localStorage
  */
 export function removeCustomCVLocally(): void {
   try {
     localStorage.removeItem(CV_STORAGE_KEY);
-  } catch (err) {
-    console.warn('Error removing CV from localStorage:', err);
+  } catch {
+    // ignore
   }
 }
 
 /**
  * Reads a user-uploaded File and converts it to a CVFileInfo object
+ * Ready to be stored in Google Cloud Firestore
  */
 export function processUploadedCVFile(file: File): Promise<CVFileInfo> {
   return new Promise((resolve, reject) => {
@@ -51,9 +26,13 @@ export function processUploadedCVFile(file: File): Promise<CVFileInfo> {
       return;
     }
 
-    // Limit size to reasonable web storage limit (15MB)
-    if (file.size > 15 * 1024 * 1024) {
-      reject(new Error('Ukuran file PDF terlalu besar (maksimal 15MB)'));
+    // Limit size to fit within Cloud Firestore single document limit (< 750KB)
+    if (file.size > 750 * 1024) {
+      reject(
+        new Error(
+          `Ukuran file PDF (${(file.size / 1024).toFixed(0)} KB) melebihi batas 750 KB untuk penyimpanan Cloud Firestore. Silakan kompres PDF terlebih dahulu (misal via ilovepdf.com).`
+        )
+      );
       return;
     }
 
@@ -72,7 +51,8 @@ export function processUploadedCVFile(file: File): Promise<CVFileInfo> {
         updatedAt: new Date().toISOString(),
       };
 
-      saveCustomCVLocally(cvInfo);
+      // Clean up any legacy localStorage item
+      removeCustomCVLocally();
       resolve(cvInfo);
     };
 
@@ -98,12 +78,12 @@ function dataUrlToBlob(dataUrl: string): Blob {
 
 /**
  * Triggers download of the CV:
- * 1. If user provided their own PDF file, downloads that exact uploaded file.
+ * 1. If user provided their own PDF file, downloads that exact uploaded file from Cloud Firestore.
  * 2. If no file was inputted, generates a clean, professional PDF document using jsPDF.
  */
 export function downloadCV(profile: ProfileData, experiences: Experience[] = []): void {
-  // 1. Check if user inputted/uploaded their own custom CV PDF
-  const customCV = profile.cvFile || loadCustomCVLocally();
+  // Check if user uploaded custom CV PDF
+  const customCV = profile.cvFile;
 
   if (customCV && customCV.dataUrl) {
     try {

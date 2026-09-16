@@ -32,7 +32,7 @@ export function verifyPIN(enteredPin: string): boolean {
 
 export function checkIsAuthenticated(): boolean {
   try {
-    return localStorage.getItem(AUTH_KEY) === 'true';
+    return sessionStorage.getItem(AUTH_KEY) === 'true';
   } catch {
     return false;
   }
@@ -41,9 +41,9 @@ export function checkIsAuthenticated(): boolean {
 export function setAuthenticatedSession(status: boolean): void {
   try {
     if (status) {
-      localStorage.setItem(AUTH_KEY, 'true');
+      sessionStorage.setItem(AUTH_KEY, 'true');
     } else {
-      localStorage.removeItem(AUTH_KEY);
+      sessionStorage.removeItem(AUTH_KEY);
     }
   } catch {
     // ignore

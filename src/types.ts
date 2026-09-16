@@ -28,10 +28,11 @@ export interface EducationItem {
 
 export interface HobbyItem {
   id: string;
-  name: string;
+  name?: string;
   title?: string;
-  category: string;
+  category?: string;
   icon?: string;
+  iconName?: string;
   description?: string;
   favorite?: string;
   detail?: string;
@@ -55,7 +56,7 @@ export interface Experience {
   company: string;
   location?: string;
   period: string;
-  type: 'Pendidikan' | 'Organisasi' | 'Kepanitiaan' | 'Karier' | 'Moderator & Event';
+  type?: 'Pendidikan' | 'Organisasi' | 'Kepanitiaan' | 'Karier' | 'Moderator & Event' | string;
   description: string;
   achievements: string[];
   technologies: string[];

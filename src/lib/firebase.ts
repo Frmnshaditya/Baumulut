@@ -8,9 +8,10 @@ import {
   getDocFromServer,
   writeBatch,
   addDoc,
+  deleteDoc,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { ProfileData, Project, ContactMessage } from '../types';
+import { ProfileData, Project, ContactMessage, CVFileInfo } from '../types';
 import { initialProfile, initialProjects } from '../data/portfolioData';
 
 // Initialize Firebase App instance
@@ -138,6 +139,61 @@ export async function saveProfileToFirestore(profile: ProfileData): Promise<void
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
+}
+
+// Save CV file document directly to Cloud Firestore
+export async function saveCVToFirestore(cvInfo: CVFileInfo): Promise<void> {
+  const path = 'portfolio/cv';
+  try {
+    const docRef = doc(db, 'portfolio', 'cv');
+    await setDoc(docRef, {
+      name: cvInfo.name,
+      dataUrl: cvInfo.dataUrl,
+      size: cvInfo.size,
+      updatedAt: cvInfo.updatedAt || new Date().toISOString(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+// Delete CV file document from Cloud Firestore
+export async function deleteCVFromFirestore(): Promise<void> {
+  const path = 'portfolio/cv';
+  try {
+    const docRef = doc(db, 'portfolio', 'cv');
+    await deleteDoc(docRef);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// Subscribe to CV document from Cloud Firestore in real-time
+export function subscribeToCV(
+  onData: (cvInfo: CVFileInfo | null) => void,
+  onError?: (err: unknown) => void
+) {
+  const docRef = doc(db, 'portfolio', 'cv');
+  return onSnapshot(
+    docRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        onData({
+          name: data.name || 'CV_Asqi_Faizul.pdf',
+          dataUrl: data.dataUrl || '',
+          size: data.size || 0,
+          updatedAt: data.updatedAt || new Date().toISOString(),
+        });
+      } else {
+        onData(null);
+      }
+    },
+    (error) => {
+      console.warn('Realtime CV snapshot warning:', error);
+      onError?.(error);
+    }
+  );
 }
 
 // Real-time Projects Listener

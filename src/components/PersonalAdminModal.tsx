@@ -1246,10 +1246,10 @@ export const PersonalAdminModal: React.FC<PersonalAdminModalProps> = ({
                 <div className="p-3 bg-neutral-50 dark:bg-[#18181B] border-2 border-black rounded-xl">
                   <span className="font-display font-bold text-black dark:text-white flex items-center gap-1.5 mb-1">
                     <Database className="w-4 h-4 text-[#FF6B00]" />
-                    Dual-Layer Cache (Offline-Ready)
+                    100% Cloud Firestore (Bukan LocalStorage)
                   </span>
                   <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">
-                    Selain tersimpan di Firebase Cloud, data juga di-cache di perangkat Anda, sehingga portofolio tetap cepat dibuka bahkan saat koneksi lambat.
+                    Foto profil, foto proyek, berkas CV, dan biodata disimpan langsung di Google Cloud Firestore. Tidak lagi bergantung pada memori lokal (localStorage) browser, sehingga data permanen dan dapat dilihat semua pengunjung.
                   </p>
                 </div>
               </div>

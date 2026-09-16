@@ -9,13 +9,15 @@ import { LoginModal } from './components/LoginModal';
 import { PersonalAdminModal } from './components/PersonalAdminModal';
 import { initialProfile, initialProjects, initialExperiences } from './data/portfolioData';
 import { ProfileData, Project, CVFileInfo } from './types';
-import { loadCustomCVLocally, saveCustomCVLocally } from './utils/pdfService';
 import { checkIsAuthenticated, setAuthenticatedSession } from './utils/authService';
 import {
   subscribeToProfile,
   subscribeToProjects,
+  subscribeToCV,
   saveProfileToFirestore,
   saveProjectsToFirestore,
+  saveCVToFirestore,
+  deleteCVFromFirestore,
   testFirestoreConnection,
 } from './lib/firebase';
 import { ShieldCheck, LogOut, Cloud } from 'lucide-react';
@@ -34,103 +36,63 @@ export default function App() {
 
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('portfolio_theme');
-    if (saved) return saved === 'dark';
+    try {
+      const saved = localStorage.getItem('portfolio_theme');
+      if (saved) return saved === 'dark';
+    } catch {
+      // ignore
+    }
     return false;
   });
 
-  // Profile data state with local fallback & Firestore realtime sync
-  const [profile, setProfile] = useState<ProfileData>(() => {
-    const storedCV = loadCustomCVLocally();
-    try {
-      const saved = localStorage.getItem('portfolio_profile');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object') {
-          return {
-            ...initialProfile,
-            ...parsed,
-            skills: {
-              ...initialProfile.skills,
-              ...(parsed.skills || {}),
-            },
-            socials: {
-              ...initialProfile.socials,
-              ...(parsed.socials || {}),
-            },
-            education: Array.isArray(parsed.education) ? parsed.education : initialProfile.education,
-            hobbies: Array.isArray(parsed.hobbies) ? parsed.hobbies : initialProfile.hobbies,
-            aboutText: Array.isArray(parsed.aboutText) ? parsed.aboutText : initialProfile.aboutText,
-            cvFile: parsed.cvFile || storedCV,
-          };
-        }
-      }
-    } catch {
-      // ignore
-    }
-    const initial = { ...initialProfile };
-    if (storedCV) {
-      initial.cvFile = storedCV;
-    }
-    return initial;
-  });
+  // Profile data state - 100% Cloud Firestore authoritative
+  const [profile, setProfile] = useState<ProfileData>(initialProfile);
 
-  // Projects data state
-  const [projects, setProjects] = useState<Project[]>(() => {
-    try {
-      const saved = localStorage.getItem('portfolio_projects');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-    } catch {
-      // ignore
-    }
-    return initialProjects;
-  });
+  // Projects data state - 100% Cloud Firestore authoritative
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
 
-  // 1. Check connection
+  // 1. Check connection & clear legacy local storage data
   useEffect(() => {
     testFirestoreConnection().then((connected) => {
       setIsFirebaseConnected(connected);
     });
+
+    // Clean up legacy localStorage items so data is exclusively from Cloud Firestore
+    try {
+      localStorage.removeItem('portfolio_profile');
+      localStorage.removeItem('portfolio_projects');
+      localStorage.removeItem('neobrutalism_portfolio_custom_cv');
+    } catch {
+      // ignore
+    }
   }, []);
 
-  // 2. Real-time Firestore Listeners (Profile & Projects)
+  // 2. Real-time Cloud Firestore Listeners (Profile, Projects, and CV)
   useEffect(() => {
     const unsubscribeProfile = subscribeToProfile((cloudProfile) => {
-      setProfile((prev) => {
-        // Keep local CV if cloud does not have it yet
-        const localCV = prev.cvFile || loadCustomCVLocally();
-        const merged = {
-          ...cloudProfile,
-          cvFile: cloudProfile.cvFile || localCV,
-        };
-        try {
-          localStorage.setItem('portfolio_profile', JSON.stringify(merged));
-        } catch {
-          // ignore
-        }
-        return merged;
-      });
+      setProfile((prev) => ({
+        ...cloudProfile,
+        cvFile: prev.cvFile, // CV is managed via dedicated realtime subscribeToCV
+      }));
     });
 
     const unsubscribeProjects = subscribeToProjects((cloudProjects) => {
       if (cloudProjects && cloudProjects.length > 0) {
         setProjects(cloudProjects);
-        try {
-          localStorage.setItem('portfolio_projects', JSON.stringify(cloudProjects));
-        } catch {
-          // ignore
-        }
       }
+    });
+
+    const unsubscribeCV = subscribeToCV((cloudCV) => {
+      setProfile((prev) => ({
+        ...prev,
+        cvFile: cloudCV || undefined,
+      }));
     });
 
     return () => {
       unsubscribeProfile();
       unsubscribeProjects();
+      unsubscribeCV();
     };
   }, []);
 
@@ -155,30 +117,27 @@ export default function App() {
 
   const handleSaveProfile = (newProfile: ProfileData) => {
     setProfile(newProfile);
-    if (newProfile.cvFile) {
-      saveCustomCVLocally(newProfile.cvFile);
-    }
-    try {
-      localStorage.setItem('portfolio_profile', JSON.stringify(newProfile));
-    } catch (e) {
-      console.warn('LocalStorage save profile quota exceeded:', e);
-    }
 
-    // Realtime Cloud Write to Firebase
+    // Save directly to Google Cloud Firestore
     saveProfileToFirestore(newProfile).catch((err) => {
       console.warn('Could not sync profile to Firebase Firestore:', err);
     });
+
+    if (newProfile.cvFile) {
+      saveCVToFirestore(newProfile.cvFile).catch((err) => {
+        console.warn('Could not sync CV to Firebase Firestore:', err);
+      });
+    } else {
+      deleteCVFromFirestore().catch((err) => {
+        console.warn('Could not delete CV from Firebase Firestore:', err);
+      });
+    }
   };
 
   const handleSaveProjects = (newProjects: Project[]) => {
     setProjects(newProjects);
-    try {
-      localStorage.setItem('portfolio_projects', JSON.stringify(newProjects));
-    } catch (e) {
-      console.warn('LocalStorage save projects quota exceeded:', e);
-    }
 
-    // Realtime Cloud Write to Firebase
+    // Save directly to Google Cloud Firestore
     saveProjectsToFirestore(newProjects).catch((err) => {
       console.warn('Could not sync projects to Firebase Firestore:', err);
     });
@@ -186,7 +145,10 @@ export default function App() {
 
   const handleUpdateCV = (cvInfo: CVFileInfo) => {
     const updated = { ...profile, cvFile: cvInfo };
-    handleSaveProfile(updated);
+    setProfile(updated);
+    saveCVToFirestore(cvInfo).catch((err) => {
+      console.warn('Could not sync CV to Firebase Firestore:', err);
+    });
   };
 
   // Auth handlers

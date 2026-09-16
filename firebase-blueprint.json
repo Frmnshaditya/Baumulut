@@ -59,6 +59,18 @@
       },
       "required": ["name", "email", "message"]
     },
+    "CVDocument": {
+      "title": "CVDocument",
+      "description": "Curriculum Vitae document with base64 PDF and metadata",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 200 },
+        "dataUrl": { "type": "string", "maxLength": 1000000 },
+        "size": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["name", "dataUrl"]
+    },
     "AppAdmin": {
       "title": "AppAdmin",
       "description": "Designated administrator identity record",
@@ -75,6 +87,10 @@
     "/portfolio/main": {
       "schema": "UserProfile",
       "description": "Global portfolio main profile document read by all visitors and updated by portfolio administrator"
+    },
+    "/portfolio/cv": {
+      "schema": "CVDocument",
+      "description": "Curriculum Vitae file document uploaded and managed by portfolio administrator"
     },
     "/projects/{projectId}": {
       "schema": "ProjectItem",
