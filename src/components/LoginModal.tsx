@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Lock,
@@ -10,7 +10,12 @@ import {
   ArrowRight,
   Sparkles,
 } from 'lucide-react';
-import { verifyPIN, setAuthenticatedSession, getStoredPIN } from '../utils/authService';
+import {
+  verifyPIN,
+  setAuthenticatedSession,
+  getStoredPIN,
+  fetchFreshPIN,
+} from '../utils/authService';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -27,13 +32,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [showPin, setShowPin] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
+  const [currentPin, setCurrentPin] = useState<string>(getStoredPIN());
+
+  // Fetch fresh PIN from Cloud Firestore when modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentPin(getStoredPIN());
+      fetchFreshPIN().then((fresh) => {
+        setCurrentPin(fresh);
+      });
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const currentPin = getStoredPIN();
   const isDefaultPin = currentPin === 'asqi2026';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pin.trim()) {
       setErrorMsg('Harap masukkan PIN / kata sandi pribadi Anda.');
@@ -43,8 +58,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setLoading(true);
     setErrorMsg('');
 
-    setTimeout(() => {
-      if (verifyPIN(pin)) {
+    try {
+      const isValid = await verifyPIN(pin);
+      if (isValid) {
         setAuthenticatedSession(true);
         setPin('');
         setLoading(false);
@@ -53,7 +69,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         setLoading(false);
         setErrorMsg('PIN / kata sandi salah. Silakan coba lagi.');
       }
-    }, 200);
+    } catch {
+      setLoading(false);
+      setErrorMsg('Terjadi kesalahan verifikasi PIN. Coba lagi.');
+    }
   };
 
   const handleUseDefault = () => {

@@ -9,6 +9,7 @@ import {
   writeBatch,
   addDoc,
   deleteDoc,
+  getDoc,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import { ProfileData, Project, ContactMessage, CVFileInfo } from '../types';
@@ -311,3 +312,64 @@ export function subscribeToMessages(
     }
   );
 }
+
+// Save Admin Security PIN directly to Cloud Firestore
+export async function saveSecurityPINToFirestore(pin: string): Promise<void> {
+  const path = 'portfolio/security';
+  try {
+    const docRef = doc(db, 'portfolio', 'security');
+    await setDoc(
+      docRef,
+      {
+        pin: pin.trim(),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+// Get Admin Security PIN directly from Cloud Firestore
+export async function getSecurityPINFromFirestore(): Promise<string | null> {
+  try {
+    const docRef = doc(db, 'portfolio', 'security');
+    const snapshot = await getDoc(docRef);
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      if (data && typeof data.pin === 'string' && data.pin.trim() !== '') {
+        return data.pin.trim();
+      }
+    }
+  } catch (err) {
+    console.warn('Could not fetch security PIN from Firestore:', err);
+  }
+  return null;
+}
+
+// Subscribe to Admin Security PIN in real-time across all devices (Mobile HP, Desktop, Laptop)
+export function subscribeToSecurityPIN(
+  onData: (pin: string) => void,
+  onError?: (err: unknown) => void
+) {
+  const docRef = doc(db, 'portfolio', 'security');
+  return onSnapshot(
+    docRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data && typeof data.pin === 'string' && data.pin.trim() !== '') {
+          onData(data.pin.trim());
+          return;
+        }
+      }
+      onData('asqi2026');
+    },
+    (error) => {
+      console.warn('Realtime security PIN snapshot warning:', error);
+      onError?.(error);
+    }
+  );
+}
+

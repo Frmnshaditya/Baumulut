@@ -71,6 +71,16 @@
       },
       "required": ["name", "dataUrl"]
     },
+    "SecuritySettings": {
+      "title": "SecuritySettings",
+      "description": "Admin security PIN settings synced via Cloud Firestore",
+      "type": "object",
+      "properties": {
+        "pin": { "type": "string", "maxLength": 100 },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["pin"]
+    },
     "AppAdmin": {
       "title": "AppAdmin",
       "description": "Designated administrator identity record",
@@ -91,6 +101,10 @@
     "/portfolio/cv": {
       "schema": "CVDocument",
       "description": "Curriculum Vitae file document uploaded and managed by portfolio administrator"
+    },
+    "/portfolio/security": {
+      "schema": "SecuritySettings",
+      "description": "Admin security PIN settings synced across all devices via Cloud Firestore"
     },
     "/projects/{projectId}": {
       "schema": "ProjectItem",

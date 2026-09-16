@@ -33,7 +33,7 @@ import {
 import { ProfileData, CVFileInfo, Project, ContactMessage } from '../types';
 import { initialProfile, initialProjects, initialExperiences } from '../data/portfolioData';
 import { processUploadedCVFile, downloadCV, removeCustomCVLocally } from '../utils/pdfService';
-import { updateStoredPIN, getStoredPIN, setAuthenticatedSession } from '../utils/authService';
+import { updateStoredPIN, getStoredPIN, setAuthenticatedSession, fetchFreshPIN } from '../utils/authService';
 import { compressAndResizeImage } from '../utils/imageUtils';
 import { subscribeToMessages } from '../lib/firebase';
 
@@ -276,10 +276,15 @@ export const PersonalAdminModal: React.FC<PersonalAdminModalProps> = ({
   };
 
   // 5. PIN Handlers
-  const handleUpdatePIN = (e: React.FormEvent) => {
+  const handleUpdatePIN = async (e: React.FormEvent) => {
     e.preventDefault();
     setPinMsg(null);
-    const existingPIN = getStoredPIN();
+    let existingPIN = getStoredPIN();
+
+    if (currentPinInput.trim() !== existingPIN) {
+      // Re-fetch directly from Cloud Firestore in case changed on another device
+      existingPIN = await fetchFreshPIN();
+    }
 
     if (currentPinInput.trim() !== existingPIN) {
       setPinMsg({ type: 'error', text: 'PIN lama tidak sesuai!' });
@@ -294,14 +299,17 @@ export const PersonalAdminModal: React.FC<PersonalAdminModalProps> = ({
       return;
     }
 
-    const success = updateStoredPIN(newPinInput.trim());
+    const success = await updateStoredPIN(newPinInput.trim());
     if (success) {
-      setPinMsg({ type: 'success', text: 'PIN pribadi Anda berhasil diubah!' });
+      setPinMsg({
+        type: 'success',
+        text: 'PIN berhasil diubah & tersimpan di Cloud Firestore! Berlaku otomatis di semua perangkat (HP, laptop, tablet).',
+      });
       setCurrentPinInput('');
       setNewPinInput('');
       setConfirmPinInput('');
     } else {
-      setPinMsg({ type: 'error', text: 'Gagal memperbarui PIN.' });
+      setPinMsg({ type: 'error', text: 'Gagal memperbarui PIN di cloud.' });
     }
   };
 
